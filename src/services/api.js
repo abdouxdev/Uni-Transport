@@ -1,6 +1,4 @@
-const API =
-  import.meta.env.VITE_API_URL ||
-  `http://${window.location.hostname}:3001/api`;
+const API = import.meta.env.VITE_API_URL || '/api';
 
 const getHeaders = () => {
   const token = localStorage.getItem('auth_token');

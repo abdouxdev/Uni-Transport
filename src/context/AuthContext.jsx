@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-const API = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
+const API = import.meta.env.VITE_API_URL || '/api';
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 

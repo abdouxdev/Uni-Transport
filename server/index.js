@@ -3,10 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('./database');
+const db = require('./database'); // This is now a mysql2 connection pool
 
 const app = express();
-app.use(cors());
+
+// Configure CORS for production/external access
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
@@ -15,21 +17,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'uni-transport-super-secret-key-202
 // ═══════════════════════════════════════════════════════════════
 // Helper: promisify db calls
 // ═══════════════════════════════════════════════════════════════
-const dbAll = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))
-  );
-const dbGet = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
-  );
-const dbRun = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-      resolve({ lastID: this.lastID, changes: this.changes });
-    })
-  );
+const dbAll = async (sql, params = []) => {
+  const [rows] = await db.query(sql, params);
+  return rows;
+};
+
+const dbGet = async (sql, params = []) => {
+  const [rows] = await db.query(sql, params);
+  return rows[0];
+};
+
+const dbRun = async (sql, params = []) => {
+  const [result] = await db.query(sql, params);
+  return { lastID: result.insertId, changes: result.affectedRows };
+};
 
 // ═══════════════════════════════════════════════════════════════
 // 0. AUTHENTICATION — /api/auth
@@ -52,7 +53,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Check in ETUDIANT table (Mock Student Login: any student email with "Student@2026!")
+    // Check in ETUDIANT table
     const student = await dbGet('SELECT * FROM ETUDIANT WHERE email = ?', [email]);
     if (student) {
       if (password !== 'Student@2026!') return res.status(401).json({ error: 'Invalid credentials' });
@@ -105,7 +106,7 @@ app.get('/api/stats', async (req, res) => {
         COALESCE(b_stats.capacite_totale, 0) as capacite_flotte,
         CASE 
           WHEN COALESCE(b_stats.capacite_totale, 0) = 0 THEN 0
-          ELSE ROUND((CAST(COALESCE(a_stats.nb_etudiants, 0) AS FLOAT) / b_stats.capacite_totale) * 100, 1)
+          ELSE ROUND((COALESCE(a_stats.nb_etudiants, 0) / b_stats.capacite_totale) * 100, 1)
         END as taux_remplissage
       FROM LIGNE l
       LEFT JOIN (
@@ -124,7 +125,7 @@ app.get('/api/stats', async (req, res) => {
     `);
 
     const openIncidents = await dbGet(
-      `SELECT COUNT(*) as count FROM TRAJET WHERE retard_minutes > 0 AND date_trajet = date('now')`
+      `SELECT COUNT(*) as count FROM TRAJET WHERE retard_minutes > 0 AND date_trajet = CURRENT_DATE`
     );
 
     const todaysTrips = await dbAll(`
@@ -182,26 +183,32 @@ app.post('/api/etudiants', async (req, res) => {
   try {
     const { matricule_etud, nom, prenom, email, id_ligne } = req.body;
     
-    // Start transaction for atomicity
-    await dbRun('BEGIN TRANSACTION');
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
     
-    const result = await dbRun(
-      `INSERT INTO ETUDIANT (matricule_etud, nom, prenom, email) VALUES (?, ?, ?, ?)`,
-      [matricule_etud, nom, prenom, email]
-    );
-    const id_etudiant = result.lastID;
-
-    if (id_ligne) {
-      await dbRun(
-        `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, DATE('now'))`,
-        [id_etudiant, id_ligne]
+    try {
+      const [result] = await connection.query(
+        `INSERT INTO ETUDIANT (matricule_etud, nom, prenom, email) VALUES (?, ?, ?, ?)`,
+        [matricule_etud, nom, prenom, email]
       );
+      const id_etudiant = result.insertId;
+
+      if (id_ligne) {
+        await connection.query(
+          `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, CURRENT_DATE)`,
+          [id_etudiant, id_ligne]
+        );
+      }
+      
+      await connection.commit();
+      res.status(201).json({ id_etudiant });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
     }
-    
-    await dbRun('COMMIT');
-    res.status(201).json({ id_etudiant });
   } catch (err) {
-    await dbRun('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
@@ -211,49 +218,52 @@ app.put('/api/etudiants/:id', async (req, res) => {
     const { matricule_etud, nom, prenom, email, id_ligne, is_active } = req.body;
     const id_etudiant = req.params.id;
 
-    await dbRun('BEGIN TRANSACTION');
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    await dbRun(
-      `UPDATE ETUDIANT SET matricule_etud = ?, nom = ?, prenom = ?, email = ? WHERE id_etudiant = ?`,
-      [matricule_etud, nom, prenom, email, id_etudiant]
-    );
+    try {
+      await connection.query(
+        `UPDATE ETUDIANT SET matricule_etud = ?, nom = ?, prenom = ?, email = ? WHERE id_etudiant = ?`,
+        [matricule_etud, nom, prenom, email, id_etudiant]
+      );
 
-    // Handle line change or status change
-    const currentSub = await dbGet(
-      `SELECT * FROM ABONNEMENT WHERE id_etudiant = ? AND date_fin IS NULL`,
-      [id_etudiant]
-    );
+      const [subRows] = await connection.query(
+        `SELECT * FROM ABONNEMENT WHERE id_etudiant = ? AND date_fin IS NULL`,
+        [id_etudiant]
+      );
+      const currentSub = subRows[0];
 
-    if (is_active === false) {
-      // Deactivate current subscription if any
-      if (currentSub) {
-        await dbRun(
-          `UPDATE ABONNEMENT SET date_fin = DATE('now') WHERE id_abonnement = ?`,
-          [currentSub.id_abonnement]
-        );
-      }
-    } else if (id_ligne) {
-      // If active and line provided
-      if (!currentSub || currentSub.id_ligne !== parseInt(id_ligne)) {
-        // Close old if exists
+      if (is_active === false) {
         if (currentSub) {
-          await dbRun(
-            `UPDATE ABONNEMENT SET date_fin = DATE('now') WHERE id_abonnement = ?`,
+          await connection.query(
+            `UPDATE ABONNEMENT SET date_fin = CURRENT_DATE WHERE id_abonnement = ?`,
             [currentSub.id_abonnement]
           );
         }
-        // Open new
-        await dbRun(
-          `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, DATE('now'))`,
-          [id_etudiant, id_ligne]
-        );
+      } else if (id_ligne) {
+        if (!currentSub || currentSub.id_ligne !== parseInt(id_ligne)) {
+          if (currentSub) {
+            await connection.query(
+              `UPDATE ABONNEMENT SET date_fin = CURRENT_DATE WHERE id_abonnement = ?`,
+              [currentSub.id_abonnement]
+            );
+          }
+          await connection.query(
+            `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, CURRENT_DATE)`,
+            [id_etudiant, id_ligne]
+          );
+        }
       }
-    }
 
-    await dbRun('COMMIT');
-    res.json({ success: true });
+      await connection.commit();
+      res.json({ success: true });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
   } catch (err) {
-    await dbRun('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
@@ -267,7 +277,6 @@ app.delete('/api/etudiants/:id', async (req, res) => {
   }
 });
 
-// Historique affectations d'un étudiant
 app.get('/api/etudiants/:id/historique', async (req, res) => {
   try {
     const rows = await dbAll(`
@@ -302,7 +311,7 @@ app.get('/api/lignes', async (req, res) => {
       LEFT JOIN (
         SELECT l2.id_ligne,
           CASE WHEN COALESCE(SUM(b2.capacite_max), 0) = 0 THEN 0
-          ELSE ROUND(CAST(COALESCE(ac.cnt, 0) AS FLOAT) / SUM(b2.capacite_max) * 100, 1) END as taux
+          ELSE ROUND(COALESCE(ac.cnt, 0) / SUM(b2.capacite_max) * 100, 1) END as taux
         FROM LIGNE l2
         LEFT JOIN AFFECTATION_BUS ab2 ON l2.id_ligne = ab2.id_ligne AND ab2.date_fin IS NULL
         LEFT JOIN BUS b2 ON ab2.id_bus = b2.id_bus
@@ -343,7 +352,6 @@ app.put('/api/lignes/:id', async (req, res) => {
   }
 });
 
-// Détails d'une ligne (stations, horaires, bus, étudiants)
 app.get('/api/lignes/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -507,7 +515,5 @@ app.get('/api/horaires', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚌 UniTransport API running on:`);
-  console.log(`   - Local:   http://localhost:${PORT}`);
-  console.log(`   - Network: http://192.168.1.67:${PORT}`);
+  console.log(`🚌 UniTransport API is running on port ${PORT}`);
 });
