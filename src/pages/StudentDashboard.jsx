@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../services/api';
 import { Route, Clock, AlertTriangle, Calendar, MapPin } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -13,7 +14,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (user?.id) {
       api.getStudentHistory(user.id)
-        .then(res => setHistory(res))
+        .then(res => setHistory(Array.isArray(res) ? res : []))
         .catch(err => {
           console.error("Student history fetch failed:", err);
           toast.error("Failed to load your history");

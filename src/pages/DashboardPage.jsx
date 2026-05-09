@@ -3,6 +3,7 @@ import { useLang } from '../context/LangContext';
 import { api } from '../services/api';
 import { GraduationCap, Bus, Route, AlertTriangle, UserX, Clock, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { toast } from 'react-hot-toast';
 
 function StatusBadge({ status, label }) {
   const styles = {
@@ -37,8 +38,8 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([api.getStats(), api.getIncidents()])
       .then(([s, i]) => {
-        setStats(s); 
-        setIncidents(i); 
+        setStats(s || {}); 
+        setIncidents(Array.isArray(i) ? i : []); 
       })
       .catch(err => {
         console.error("Dashboard data fetch failed:", err);
@@ -127,7 +128,7 @@ export default function DashboardPage() {
             <h3 className="font-bold text-foreground flex items-center gap-2"><AlertTriangle size={16} className="text-danger"/> {t.dashboard.recentIncidents}</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {incidents.map((inc, i) => (
+            {Array.isArray(incidents) && incidents.map((inc, i) => (
               <div key={i} className="p-4 border-b border-border hover:bg-surface-alt transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="font-semibold text-sm">Bus {inc.immatriculation}</div>

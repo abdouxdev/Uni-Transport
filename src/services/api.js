@@ -59,11 +59,7 @@ const request = async (url, opts = {}) => {
 
   } catch (err) {
     console.error(`API Error (${url}):`, err);
-
-    return {
-      error: true,
-      message: err.message,
-    };
+    throw err;
   }
 };
 

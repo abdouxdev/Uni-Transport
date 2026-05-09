@@ -25,8 +25,9 @@ export default function LoginPage() {
       if (user.role === 'student') navigate('/student-dashboard');
       else navigate('/');
     } catch (err) {
-      setError(t.auth.invalidCredentials);
-      toast.error(t.auth.invalidCredentials);
+      const msg = err.message || t.auth.invalidCredentials;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
