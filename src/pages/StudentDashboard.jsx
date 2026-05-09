@@ -21,7 +21,7 @@ export default function StudentDashboard() {
 
   if (loading) return <div className="flex h-full items-center justify-center"><div className="spinner w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full"/></div>;
 
-  const activeSub = history.find(h => h.statut === 'Actif');
+  const activeSub = (history || []).find(h => h.statut === 'Actif');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">

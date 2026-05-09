@@ -87,7 +87,7 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={stats?.studentsPerLine} margin={{top:0,right:0,left:-20,bottom:0}} barSize={16}>
               <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false}/>
-              <XAxis dataKey="nom_ligne" tickFormatter={v=>v.split(' — ')[0]} tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false}/>
+              <XAxis dataKey="nom_ligne" tickFormatter={v=>v?.split(' — ')[0] || ''} tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false}/>
               <Tooltip cursor={{fill:'var(--color-surface-alt)'}} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)'}}/>
               <Bar dataKey="nombre_etudiants" fill="var(--color-primary)" radius={[4,4,0,0]} />
@@ -100,11 +100,11 @@ export default function DashboardPage() {
             <BarChart data={stats?.fillRates?.filter(d=>d.capacite_flotte>0)} layout="vertical" margin={{top:0,right:0,left:0,bottom:0}} barSize={12}>
               <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" horizontal={false}/>
               <XAxis type="number" domain={[0,100]} tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
-              <YAxis type="category" dataKey="nom_ligne" tickFormatter={v=>v.split(' — ')[0]} tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false} width={30}/>
+              <YAxis type="category" dataKey="nom_ligne" tickFormatter={v=>v?.split(' — ')[0] || ''} tick={{fontSize:11,fill:'var(--color-muted)'}} axisLine={false} tickLine={false} width={30}/>
               <Tooltip cursor={{fill:'var(--color-surface-alt)'}} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)'}}/>
               <ReferenceLine x={90} stroke="var(--color-danger)" strokeDasharray="3 3" />
               <Bar dataKey="taux_remplissage" radius={[0,4,4,0]}>
-                {stats?.fillRates?.filter(d=>d.capacite_flotte>0).map((e,i) => (
+                {(stats?.fillRates || []).filter(d=>d.capacite_flotte>0).map((e,i) => (
                   <Cell key={i} fill={e.taux_remplissage>=90 ? 'var(--color-danger)' : e.taux_remplissage>=75 ? 'var(--color-warning)' : 'var(--color-success)'}/>
                 ))}
               </Bar>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                   <StatusBadge status={inc.statut} label={t.dashboard[inc.statut]} />
                 </div>
                 <div className="text-xs text-muted flex gap-3">
-                  <span className="font-medium text-primary bg-primary-light px-2 py-0.5 rounded">{inc.nom_ligne.split(' — ')[0]}</span>
+                  <span className="font-medium text-primary bg-primary-light px-2 py-0.5 rounded">{inc.nom_ligne?.split(' — ')[0] || ''}</span>
                   <span>{inc.heure_depart}</span>
                   {inc.retard_minutes > 0 && <span className="text-danger font-bold">+{inc.retard_minutes} min</span>}
                 </div>
