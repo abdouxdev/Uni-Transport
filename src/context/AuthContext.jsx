@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-const API = import.meta.env.VITE_API_URL || '/api';
+import { api } from '../services/api';
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
@@ -16,12 +16,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('auth_token'));
 
   const login = async (email, password) => {
-    const res = await fetch(`${API}/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    const data = await api.login(email, password);
     setUser(data.user); setToken(data.token);
     localStorage.setItem('auth_user', JSON.stringify(data.user));
     localStorage.setItem('auth_token', data.token);
