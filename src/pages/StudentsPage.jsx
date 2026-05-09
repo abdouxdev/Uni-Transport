@@ -7,22 +7,24 @@ import { toast } from 'react-hot-toast';
 export default function StudentsPage() {
   const { t } = useLang();
   const [students, setStudents] = useState([]);
+  const [lines, setLines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
-  const [formData, setFormData] = useState({ matricule_etud: '', nom: '', prenom: '', email: '' });
+  const [formData, setFormData] = useState({ matricule_etud: '', nom: '', prenom: '', email: '', id_ligne: '', is_active: true });
 
   useEffect(() => {
-    fetchStudents();
+    fetchData();
   }, []);
 
-  const fetchStudents = async () => {
+  const fetchData = async () => {
     try {
-      const data = await api.getStudents();
-      setStudents(data);
+      const [sData, lData] = await Promise.all([api.getStudents(), api.getLines()]);
+      setStudents(sData);
+      setLines(lData);
     } catch (err) {
-      toast.error('Failed to fetch students');
+      toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -35,11 +37,13 @@ export default function StudentsPage() {
         matricule_etud: student.matricule_etud, 
         nom: student.nom, 
         prenom: student.prenom, 
-        email: student.email || '' 
+        email: student.email || '',
+        id_ligne: student.id_ligne || '',
+        is_active: student.ligne_actuelle ? true : false
       });
     } else {
       setEditingStudent(null);
-      setFormData({ matricule_etud: '', nom: '', prenom: '', email: '' });
+      setFormData({ matricule_etud: '', nom: '', prenom: '', email: '', id_ligne: '', is_active: true });
     }
     setIsModalOpen(true);
   };
@@ -59,7 +63,7 @@ export default function StudentsPage() {
         await api.createStudent(formData);
         toast.success('Student created successfully');
       }
-      fetchStudents();
+      fetchData();
       handleCloseModal();
     } catch (err) {
       toast.error(err.message || 'Operation failed');
@@ -71,7 +75,7 @@ export default function StudentsPage() {
       try {
         await api.deleteStudent(id);
         toast.success('Student deleted successfully');
-        fetchStudents();
+        fetchData();
       } catch (err) {
         toast.error('Failed to delete student');
       }
@@ -248,6 +252,34 @@ export default function StudentsPage() {
                   className="w-full px-4 py-2.5 bg-surface-alt border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                   placeholder="nom.prenom@etu.usthb.dz"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">{t.students.line}</label>
+                  <select 
+                    value={formData.id_ligne}
+                    onChange={(e) => setFormData({...formData, id_ligne: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-surface-alt border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm appearance-none"
+                  >
+                    <option value="">Select a line</option>
+                    {lines.map(l => (
+                      <option key={l.id_ligne} value={l.id_ligne}>{l.nom_ligne}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">Status</label>
+                  <div className="flex items-center gap-3 mt-3">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, is_active: !formData.is_active})}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none focus:ring-2 focus:ring-primary/20 ${formData.is_active ? 'bg-primary' : 'bg-muted/30'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-sm font-medium">{formData.is_active ? 'Active' : 'Inactive'}</span>
+                  </div>
+                </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button 

@@ -17,7 +17,7 @@ export default function AppLayout({ requireAuth = true, requireAdmin = false }) 
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-surface text-foreground">
       <Sidebar collapsed={collapsed} onCollapse={() => setCollapsed(!collapsed)} />
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${collapsed ? 'ml-[68px]' : 'ml-[260px]'}`}>
         <Topbar />

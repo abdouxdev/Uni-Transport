@@ -165,7 +165,7 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/etudiants', async (req, res) => {
   try {
     const rows = await dbAll(`
-      SELECT e.*, l.nom_ligne as ligne_actuelle, a.date_debut as date_abonnement
+      SELECT e.*, l.nom_ligne as ligne_actuelle, a.id_ligne
       FROM ETUDIANT e
       LEFT JOIN ABONNEMENT a ON e.id_etudiant = a.id_etudiant AND a.date_fin IS NULL
       LEFT JOIN LIGNE l ON a.id_ligne = l.id_ligne
@@ -179,26 +179,80 @@ app.get('/api/etudiants', async (req, res) => {
 
 app.post('/api/etudiants', async (req, res) => {
   try {
-    const { matricule_etud, nom, prenom, email } = req.body;
+    const { matricule_etud, nom, prenom, email, id_ligne } = req.body;
+    
+    // Start transaction for atomicity
+    await dbRun('BEGIN TRANSACTION');
+    
     const result = await dbRun(
       `INSERT INTO ETUDIANT (matricule_etud, nom, prenom, email) VALUES (?, ?, ?, ?)`,
       [matricule_etud, nom, prenom, email]
     );
-    res.status(201).json({ id_etudiant: result.lastID });
+    const id_etudiant = result.lastID;
+
+    if (id_ligne) {
+      await dbRun(
+        `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, DATE('now'))`,
+        [id_etudiant, id_ligne]
+      );
+    }
+    
+    await dbRun('COMMIT');
+    res.status(201).json({ id_etudiant });
   } catch (err) {
+    await dbRun('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
 
 app.put('/api/etudiants/:id', async (req, res) => {
   try {
-    const { matricule_etud, nom, prenom, email } = req.body;
+    const { matricule_etud, nom, prenom, email, id_ligne, is_active } = req.body;
+    const id_etudiant = req.params.id;
+
+    await dbRun('BEGIN TRANSACTION');
+
     await dbRun(
       `UPDATE ETUDIANT SET matricule_etud = ?, nom = ?, prenom = ?, email = ? WHERE id_etudiant = ?`,
-      [matricule_etud, nom, prenom, email, req.params.id]
+      [matricule_etud, nom, prenom, email, id_etudiant]
     );
+
+    // Handle line change or status change
+    const currentSub = await dbGet(
+      `SELECT * FROM ABONNEMENT WHERE id_etudiant = ? AND date_fin IS NULL`,
+      [id_etudiant]
+    );
+
+    if (is_active === false) {
+      // Deactivate current subscription if any
+      if (currentSub) {
+        await dbRun(
+          `UPDATE ABONNEMENT SET date_fin = DATE('now') WHERE id_abonnement = ?`,
+          [currentSub.id_abonnement]
+        );
+      }
+    } else if (id_ligne) {
+      // If active and line provided
+      if (!currentSub || currentSub.id_ligne !== parseInt(id_ligne)) {
+        // Close old if exists
+        if (currentSub) {
+          await dbRun(
+            `UPDATE ABONNEMENT SET date_fin = DATE('now') WHERE id_abonnement = ?`,
+            [currentSub.id_abonnement]
+          );
+        }
+        // Open new
+        await dbRun(
+          `INSERT INTO ABONNEMENT (id_etudiant, id_ligne, date_debut) VALUES (?, ?, DATE('now'))`,
+          [id_etudiant, id_ligne]
+        );
+      }
+    }
+
+    await dbRun('COMMIT');
     res.json({ success: true });
   } catch (err) {
+    await dbRun('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
