@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('./database');
 
 const app = express();
@@ -7,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'uni-transport-super-secret-key-2026';
 
 // ═══════════════════════════════════════════════════════════════
 // Helper: promisify db calls
@@ -26,6 +29,46 @@ const dbRun = (sql, params = []) =>
       resolve({ lastID: this.lastID, changes: this.changes });
     })
   );
+
+// ═══════════════════════════════════════════════════════════════
+// 0. AUTHENTICATION — /api/auth
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Check in UTILISATEUR table (Admin/Manager)
+    const user = await dbGet('SELECT * FROM UTILISATEUR WHERE email = ?', [email]);
+    
+    if (user) {
+      const valid = await bcrypt.compare(password, user.mot_de_passe);
+      if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+      
+      const token = jwt.sign({ id: user.id_utilisateur, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+      return res.json({
+        token,
+        user: { id: user.id_utilisateur, email: user.email, role: user.role, nom: user.nom, prenom: user.prenom }
+      });
+    }
+
+    // Check in ETUDIANT table (Mock Student Login: any student email with "Student@2026!")
+    const student = await dbGet('SELECT * FROM ETUDIANT WHERE email = ?', [email]);
+    if (student) {
+      if (password !== 'Student@2026!') return res.status(401).json({ error: 'Invalid credentials' });
+      
+      const token = jwt.sign({ id: student.id_etudiant, role: 'student' }, JWT_SECRET, { expiresIn: '1d' });
+      return res.json({
+        token,
+        user: { id: student.id_etudiant, email: student.email, role: 'student', nom: student.nom, prenom: student.prenom, matricule: student.matricule_etud }
+      });
+    }
+
+    return res.status(401).json({ error: 'User not found' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // 1. DASHBOARD — /api/stats

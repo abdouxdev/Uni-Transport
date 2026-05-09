@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
@@ -10,6 +11,18 @@ db.run('PRAGMA foreign_keys = OFF');
 
 const initDb = () => {
   db.serialize(() => {
+    // ═══════════════════════════════════════════════════════════
+    // 0. UTILISATEURS (Admin & Manager)
+    // ═══════════════════════════════════════════════════════════
+    db.run(`CREATE TABLE IF NOT EXISTS UTILISATEUR (
+      id_utilisateur INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      mot_de_passe TEXT NOT NULL,
+      role TEXT NOT NULL,
+      nom TEXT,
+      prenom TEXT
+    )`);
+
     // ═══════════════════════════════════════════════════════════
     // 1. ETUDIANT
     // ═══════════════════════════════════════════════════════════
@@ -121,9 +134,19 @@ const initDb = () => {
     // ═══════════════════════════════════════════════════════════
     // SEED DATA — Realistic USTHB transport data
     // ═══════════════════════════════════════════════════════════
-    db.get("SELECT COUNT(*) AS count FROM LIGNE", (err, row) => {
+    db.get("SELECT COUNT(*) AS count FROM LIGNE", async (err, row) => {
       if (row && row.count === 0) {
         console.log("🚌 Seeding USTHB transport data...");
+
+        // ── Utilisateurs (Admin & Manager) ──────────────────────
+        const salt = await bcrypt.genSalt(10);
+        const adminHash = await bcrypt.hash('Admin@USTHB2026', salt);
+        const managerHash = await bcrypt.hash('Manager@Trans26', salt);
+        
+        const stmtUser = db.prepare("INSERT INTO UTILISATEUR (email, mot_de_passe, role, nom, prenom) VALUES (?, ?, ?, ?, ?)");
+        stmtUser.run('a.amrani@usthb.dz', adminHash, 'admin', 'Amrani', 'Amir');
+        stmtUser.run('n.ouali.manager@usthb.dz', managerHash, 'manager', 'Ouali', 'Nadia');
+        stmtUser.finalize();
 
         // ── Lignes ──────────────────────────────────────────────
         const lignes = [
