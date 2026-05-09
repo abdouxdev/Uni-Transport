@@ -1,4 +1,4 @@
-const API = `http://${window.location.hostname}:3001/api`;
+const API = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
 
 const getHeaders = () => {
   const token = localStorage.getItem('auth_token');
@@ -6,10 +6,24 @@ const getHeaders = () => {
 };
 
 const request = async (url, opts = {}) => {
-  const res = await fetch(`${API}${url}`, { ...opts, headers: { ...getHeaders(), ...opts.headers } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  try {
+    const res = await fetch(`${API}${url}`, { ...opts, headers: { ...getHeaders(), ...opts.headers } });
+    
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  } catch (err) {
+    console.error(`API Error (${url}):`, err);
+    throw err;
+  }
 };
 
 export const api = {

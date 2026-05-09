@@ -35,9 +35,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getStats(), api.getIncidents()]).then(([s, i]) => {
-      setStats(s); setIncidents(i); setLoading(false);
-    });
+    Promise.all([api.getStats(), api.getIncidents()])
+      .then(([s, i]) => {
+        setStats(s); 
+        setIncidents(i); 
+      })
+      .catch(err => {
+        console.error("Dashboard data fetch failed:", err);
+        toast.error(t.common?.error || "Failed to load dashboard data");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex h-full items-center justify-center"><div className="spinner w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full"/></div>;
@@ -48,7 +55,7 @@ export default function DashboardPage() {
     { label: t.dashboard.activeBuses, value: kpi?.activeBuses, sub: `${kpi?.maintenanceBuses} maintenance`, icon: Bus, color: 'text-sky-600 bg-sky-100' },
     { label: t.dashboard.activeLines, value: kpi?.activeLines, sub: `${kpi?.inactiveLines} suspended`, icon: Route, color: 'text-purple-600 bg-purple-100' },
     { label: t.dashboard.openIncidents, value: kpi?.openIncidents, sub: 'action required', icon: AlertTriangle, color: 'text-red-600 bg-red-100', alert: true },
-    { label: t.dashboard.noSubscription, value: kpi?.unsubscribed, sub: `${Math.round(kpi?.unsubscribed/kpi?.totalStudents*100)}% of total`, icon: UserX, color: 'text-amber-600 bg-amber-100', trend: {v:'-18 this week', pos:true} },
+    { label: t.dashboard.noSubscription, value: kpi?.unsubscribed, sub: kpi?.totalStudents > 0 ? `${Math.round((kpi?.unsubscribed || 0) / kpi.totalStudents * 100)}% of total` : '0% of total', icon: UserX, color: 'text-amber-600 bg-amber-100', trend: {v:'-18 this week', pos:true} },
     { label: t.dashboard.todaysTrips, value: stats?.todaysTrips?.length || 0, sub: 'Scheduled for today', icon: Clock, color: 'text-green-600 bg-green-100', span: true, trend: {v:'85% on time', pos:true} },
   ];
 

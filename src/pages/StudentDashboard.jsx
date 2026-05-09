@@ -12,10 +12,15 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (user?.id) {
-      api.getStudentHistory(user.id).then(res => {
-        setHistory(res);
-        setLoading(false);
-      });
+      api.getStudentHistory(user.id)
+        .then(res => setHistory(res))
+        .catch(err => {
+          console.error("Student history fetch failed:", err);
+          toast.error("Failed to load your history");
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
   }, [user]);
 

@@ -83,9 +83,9 @@ export default function StudentsPage() {
   };
 
   const filteredStudents = students.filter(s => 
-    s.nom.toLowerCase().includes(search.toLowerCase()) || 
-    s.prenom.toLowerCase().includes(search.toLowerCase()) ||
-    s.matricule_etud.toLowerCase().includes(search.toLowerCase())
+    (s.nom || '').toLowerCase().includes(search.toLowerCase()) || 
+    (s.prenom || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.matricule_etud || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -151,7 +151,7 @@ export default function StudentsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary-light text-primary flex items-center justify-center font-bold text-xs">
-                          {s.prenom[0]}{s.nom[0]}
+                          {(s.prenom || '')[0]}{(s.nom || '')[0]}
                         </div>
                         <div>
                           <div className="font-semibold text-sm">{s.prenom} {s.nom}</div>

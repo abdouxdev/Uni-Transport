@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -505,6 +506,8 @@ app.get('/api/horaires', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚌 UniTransport API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚌 UniTransport API running on:`);
+  console.log(`   - Local:   http://localhost:${PORT}`);
+  console.log(`   - Network: http://192.168.1.67:${PORT}`);
 });

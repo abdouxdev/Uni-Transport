@@ -12,11 +12,23 @@ import TripsPage from './pages/TripsPage';
 import IncidentsPage from './pages/IncidentsPage';
 import SettingsPage from './pages/SettingsPage';
 
-// Placeholder components for Phase 2
-const Placeholder = ({ title }) => (
-  <div className="flex h-full items-center justify-center text-muted flex-col gap-2">
-    <h2 className="text-2xl font-bold">{title}</h2>
-    <p>Module in development (Phase 2)</p>
+const NotFound = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background p-6">
+    <div className="max-w-md w-full text-center space-y-6">
+      <div className="text-9xl font-extrabold text-primary/10 select-none">404</div>
+      <div className="relative -mt-20">
+        <h1 className="text-3xl font-bold text-foreground">Page introuvable</h1>
+        <p className="text-muted mt-2 leading-relaxed">
+          La page que vous recherchez n'existe pas ou a été déplacée.
+        </p>
+      </div>
+      <button 
+        onClick={() => window.location.href = '/'}
+        className="px-8 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-all shadow-lg shadow-primary/20"
+      >
+        Retour au tableau de bord
+      </button>
+    </div>
   </div>
 );
 
@@ -43,7 +55,7 @@ export default function App() {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

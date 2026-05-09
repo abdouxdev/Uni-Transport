@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
-import { Bus, Shield, GraduationCap, Copy, Check, EyeOff, Eye, LogIn } from 'lucide-react';
+import { Bus, Shield, GraduationCap, Copy, Check, EyeOff, Eye, LogIn, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
