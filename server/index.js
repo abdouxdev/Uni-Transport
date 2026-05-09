@@ -190,6 +190,28 @@ app.post('/api/etudiants', async (req, res) => {
   }
 });
 
+app.put('/api/etudiants/:id', async (req, res) => {
+  try {
+    const { matricule_etud, nom, prenom, email } = req.body;
+    await dbRun(
+      `UPDATE ETUDIANT SET matricule_etud = ?, nom = ?, prenom = ?, email = ? WHERE id_etudiant = ?`,
+      [matricule_etud, nom, prenom, email, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/etudiants/:id', async (req, res) => {
+  try {
+    await dbRun(`DELETE FROM ETUDIANT WHERE id_etudiant = ?`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Historique affectations d'un étudiant
 app.get('/api/etudiants/:id/historique', async (req, res) => {
   try {
@@ -235,6 +257,32 @@ app.get('/api/lignes', async (req, res) => {
       ORDER BY l.id_ligne
     `);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lignes', async (req, res) => {
+  try {
+    const { nom_ligne, description, statut } = req.body;
+    const result = await dbRun(
+      `INSERT INTO LIGNE (nom_ligne, description, statut) VALUES (?, ?, ?)`,
+      [nom_ligne, description, statut || 'active']
+    );
+    res.status(201).json({ id_ligne: result.lastID });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/lignes/:id', async (req, res) => {
+  try {
+    const { nom_ligne, description, statut } = req.body;
+    await dbRun(
+      `UPDATE LIGNE SET nom_ligne = ?, description = ?, statut = ? WHERE id_ligne = ?`,
+      [nom_ligne, description, statut, req.params.id]
+    );
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -291,6 +339,32 @@ app.get('/api/bus', async (req, res) => {
       ORDER BY b.immatriculation
     `);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bus', async (req, res) => {
+  try {
+    const { immatriculation, modele, capacite_max, statut } = req.body;
+    const result = await dbRun(
+      `INSERT INTO BUS (immatriculation, modele, capacite_max, statut) VALUES (?, ?, ?, ?)`,
+      [immatriculation, modele, capacite_max, statut || 'active']
+    );
+    res.status(201).json({ id_bus: result.lastID });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/bus/:id', async (req, res) => {
+  try {
+    const { immatriculation, modele, capacite_max, statut } = req.body;
+    await dbRun(
+      `UPDATE BUS SET immatriculation = ?, modele = ?, capacite_max = ?, statut = ? WHERE id_bus = ?`,
+      [immatriculation, modele, capacite_max, statut, req.params.id]
+    );
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

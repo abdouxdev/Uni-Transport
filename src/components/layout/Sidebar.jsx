@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
 import { useLang } from '../../context/LangContext';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, GraduationCap, Bus, Route, Calendar, ClipboardList, AlertTriangle, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function Sidebar({ active, onNav, collapsed, onCollapse }) {
+export default function Sidebar({ collapsed, onCollapse }) {
   const { t } = useLang();
   const { logout, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const getActiveId = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return 'dashboard';
+    return path.substring(1);
+  };
+
+  const activeId = getActiveId();
 
   const adminGroups = [
     { label: 'Overview', items: [{ id:'dashboard', label:t.nav.dashboard, icon:LayoutDashboard }] },
@@ -54,11 +65,11 @@ export default function Sidebar({ active, onNav, collapsed, onCollapse }) {
             <ul className="space-y-0.5">
               {g.items.map(item => {
                 const Icon = item.icon;
-                const isActive = active === item.id;
+                const isActive = activeId === item.id;
                 return (
                   <li key={item.id}>
                     <button
-                      onClick={() => onNav(item.id)}
+                      onClick={() => navigate(item.id === 'dashboard' ? '/' : `/${item.id}`)}
                       title={collapsed ? item.label : undefined}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer
                         ${isActive ? 'bg-primary-light text-primary font-semibold' : 'text-muted hover:bg-surface-alt hover:text-foreground'}
@@ -80,7 +91,7 @@ export default function Sidebar({ active, onNav, collapsed, onCollapse }) {
 
       {/* Bottom */}
       <div className="border-t border-border px-3 py-3 flex-shrink-0 space-y-0.5">
-        <button onClick={() => onNav('settings')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:bg-surface-alt hover:text-foreground transition-all ${collapsed ? 'justify-center px-0 w-11 h-11 mx-auto' : ''}`}>
+        <button onClick={() => navigate('/settings')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:bg-surface-alt hover:text-foreground transition-all ${collapsed ? 'justify-center px-0 w-11 h-11 mx-auto' : ''}`}>
           <Settings size={18} />{!collapsed && <span>{t.nav.settings}</span>}
         </button>
         <button onClick={logout} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted hover:bg-red-50 hover:text-danger transition-all ${collapsed ? 'justify-center px-0 w-11 h-11 mx-auto' : ''}`}>

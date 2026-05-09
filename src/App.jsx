@@ -4,6 +4,9 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import StudentDashboard from './pages/StudentDashboard';
+import StudentsPage from './pages/StudentsPage';
+import BusesPage from './pages/BusesPage';
+import LinesPage from './pages/LinesPage';
 
 // Placeholder components for Phase 2
 const Placeholder = ({ title }) => (
@@ -21,9 +24,9 @@ export default function App() {
       {/* Admin / Manager Routes */}
       <Route element={<AppLayout requireAuth={true} requireAdmin={true} />}>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/students" element={<Placeholder title="Students Management" />} />
-        <Route path="/buses" element={<Placeholder title="Buses Management" />} />
-        <Route path="/lines" element={<Placeholder title="Lines Management" />} />
+        <Route path="/students" element={<StudentsPage />} />
+        <Route path="/buses" element={<BusesPage />} />
+        <Route path="/lines" element={<LinesPage />} />
         <Route path="/schedules" element={<Placeholder title="Schedules" />} />
         <Route path="/trips" element={<Placeholder title="Trips" />} />
         <Route path="/incidents" element={<Placeholder title="Incidents" />} />

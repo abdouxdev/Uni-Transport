@@ -26,8 +26,12 @@ export const api = {
   // Lines
   getLines: () => request('/lignes'),
   getLine: (id) => request(`/lignes/${id}`),
+  createLine: (d) => request('/lignes', { method: 'POST', body: JSON.stringify(d) }),
+  updateLine: (id, d) => request(`/lignes/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
   // Buses
   getBuses: () => request('/bus'),
+  createBus: (d) => request('/bus', { method: 'POST', body: JSON.stringify(d) }),
+  updateBus: (id, d) => request(`/bus/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
   // Incidents
   getIncidents: () => request('/incidents'),
   // Trips
