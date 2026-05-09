@@ -10,6 +10,7 @@ import LinesPage from './pages/LinesPage';
 import SchedulesPage from './pages/SchedulesPage';
 import TripsPage from './pages/TripsPage';
 import IncidentsPage from './pages/IncidentsPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Placeholder components for Phase 2
 const Placeholder = ({ title }) => (
@@ -33,7 +34,7 @@ export default function App() {
         <Route path="/schedules" element={<SchedulesPage />} />
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/incidents" element={<IncidentsPage />} />
-        <Route path="/settings" element={<Placeholder title="Settings" />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       {/* Student Routes */}

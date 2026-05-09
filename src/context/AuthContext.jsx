@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-const API = 'http://localhost:3001/api';
+const API = `http://${window.location.hostname}:3001/api`;
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 

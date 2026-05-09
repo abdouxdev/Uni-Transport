@@ -1,4 +1,4 @@
-const API = 'http://localhost:3001/api';
+const API = `http://${window.location.hostname}:3001/api`;
 
 const getHeaders = () => {
   const token = localStorage.getItem('auth_token');
