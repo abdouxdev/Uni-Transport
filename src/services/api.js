@@ -1,4 +1,12 @@
-const API = import.meta.env.VITE_API_URL || '/api';
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  if (typeof window !== 'undefined') {
+    return envUrl.replace('localhost', window.location.hostname);
+  }
+  return envUrl;
+};
+
+const API = getApiUrl();
 
 const getHeaders = () => {
   const token = localStorage.getItem('auth_token');
@@ -13,13 +21,14 @@ const getHeaders = () => {
 
 const request = async (url, opts = {}) => {
   try {
-    const res = await fetch(`${API}${url}`, {
+    const res = await fetch(`${API}${url.startsWith('/') ? '' : '/'}${url}`, {
       ...opts,
       headers: {
         ...getHeaders(),
         ...opts.headers,
       },
     });
+
 
     // Auth errors
     if (res.status === 401 || res.status === 403) {
@@ -35,15 +44,19 @@ const request = async (url, opts = {}) => {
 
     // Safe JSON parsing
     const text = await res.text();
-
     let data = {};
 
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch (e) {
-      console.error('Invalid JSON response:', text);
-
-      throw new Error('Server returned invalid JSON');
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Invalid JSON response:', text);
+        // If it's HTML, it's likely a server crash/error page
+        if (text.trim().startsWith('<')) {
+          throw new Error('Le serveur a rencontré une erreur inattendue (500).');
+        }
+        throw new Error('Le serveur a renvoyé une réponse invalide.');
+      }
     }
 
     // Handle API errors

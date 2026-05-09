@@ -15,6 +15,29 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'uni-transport-super-secret-key-2026';
 
 // ═══════════════════════════════════════════════════════════════
+// Middleware: JWT Verification
+// ═══════════════════════════════════════════════════════════════
+const verifyToken = (req, res, next) => {
+  const bearerHeader = req.headers['authorization'];
+  if (!bearerHeader) {
+    return res.status(403).json({ error: 'Accès refusé. Aucun token fourni.' });
+  }
+
+  const token = bearerHeader.split(' ')[1];
+  if (!token) {
+    return res.status(403).json({ error: 'Format de token invalide.' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ error: 'Token invalide ou expiré.' });
+    }
+    req.user = decoded; // { id, role, iat, exp }
+    next();
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
 // Helper: promisify db calls
 // ═══════════════════════════════════════════════════════════════
 const dbAll = async (sql, params = []) => {
@@ -75,7 +98,7 @@ app.post('/api/auth/login', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 1. DASHBOARD — /api/stats
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', verifyToken, async (req, res, next) => {
   try {
     const totalStudents = await dbGet(`SELECT COUNT(*) as count FROM ETUDIANT`);
     const subscribedStudents = await dbGet(
@@ -164,7 +187,7 @@ app.get('/api/stats', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 2. ÉTUDIANTS — /api/etudiants
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/etudiants', async (req, res) => {
+app.get('/api/etudiants', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT e.*, l.nom_ligne as ligne_actuelle, a.id_ligne
@@ -179,7 +202,7 @@ app.get('/api/etudiants', async (req, res) => {
   }
 });
 
-app.post('/api/etudiants', async (req, res) => {
+app.post('/api/etudiants', verifyToken, async (req, res, next) => {
   try {
     const { matricule_etud, nom, prenom, email, id_ligne } = req.body;
     
@@ -213,7 +236,7 @@ app.post('/api/etudiants', async (req, res) => {
   }
 });
 
-app.put('/api/etudiants/:id', async (req, res) => {
+app.put('/api/etudiants/:id', verifyToken, async (req, res, next) => {
   try {
     const { matricule_etud, nom, prenom, email, id_ligne, is_active } = req.body;
     const id_etudiant = req.params.id;
@@ -268,7 +291,7 @@ app.put('/api/etudiants/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/etudiants/:id', async (req, res) => {
+app.delete('/api/etudiants/:id', verifyToken, async (req, res, next) => {
   try {
     await dbRun(`DELETE FROM ETUDIANT WHERE id_etudiant = ?`, [req.params.id]);
     res.json({ success: true });
@@ -277,7 +300,7 @@ app.delete('/api/etudiants/:id', async (req, res) => {
   }
 });
 
-app.get('/api/etudiants/:id/historique', async (req, res) => {
+app.get('/api/etudiants/:id/historique', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT l.nom_ligne, a.date_debut, a.date_fin,
@@ -296,7 +319,7 @@ app.get('/api/etudiants/:id/historique', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 3. LIGNES — /api/lignes
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/lignes', async (req, res) => {
+app.get('/api/lignes', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT l.*,
@@ -326,7 +349,7 @@ app.get('/api/lignes', async (req, res) => {
   }
 });
 
-app.post('/api/lignes', async (req, res) => {
+app.post('/api/lignes', verifyToken, async (req, res, next) => {
   try {
     const { nom_ligne, description, statut } = req.body;
     const result = await dbRun(
@@ -339,7 +362,7 @@ app.post('/api/lignes', async (req, res) => {
   }
 });
 
-app.put('/api/lignes/:id', async (req, res) => {
+app.put('/api/lignes/:id', verifyToken, async (req, res, next) => {
   try {
     const { nom_ligne, description, statut } = req.body;
     await dbRun(
@@ -352,7 +375,7 @@ app.put('/api/lignes/:id', async (req, res) => {
   }
 });
 
-app.get('/api/lignes/:id', async (req, res) => {
+app.get('/api/lignes/:id', verifyToken, async (req, res, next) => {
   try {
     const id = req.params.id;
     const ligne = await dbGet('SELECT * FROM LIGNE WHERE id_ligne = ?', [id]);
@@ -392,7 +415,7 @@ app.get('/api/lignes/:id', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 4. BUS — /api/bus
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/bus', async (req, res) => {
+app.get('/api/bus', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT b.*, l.nom_ligne as ligne_actuelle
@@ -407,7 +430,7 @@ app.get('/api/bus', async (req, res) => {
   }
 });
 
-app.post('/api/bus', async (req, res) => {
+app.post('/api/bus', verifyToken, async (req, res, next) => {
   try {
     const { immatriculation, modele, capacite_max, statut } = req.body;
     const result = await dbRun(
@@ -420,7 +443,7 @@ app.post('/api/bus', async (req, res) => {
   }
 });
 
-app.put('/api/bus/:id', async (req, res) => {
+app.put('/api/bus/:id', verifyToken, async (req, res, next) => {
   try {
     const { immatriculation, modele, capacite_max, statut } = req.body;
     await dbRun(
@@ -436,7 +459,7 @@ app.put('/api/bus/:id', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 5. INCIDENTS (Trajets en retard) — /api/incidents
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/incidents', async (req, res) => {
+app.get('/api/incidents', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT t.id_trajet, t.date_trajet, t.retard_minutes, t.statut, t.nb_passagers,
@@ -458,7 +481,7 @@ app.get('/api/incidents', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 6. TRAJETS — /api/trajets
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/trajets', async (req, res) => {
+app.get('/api/trajets', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT t.*, l.nom_ligne, b.immatriculation, b.capacite_max,
@@ -478,7 +501,7 @@ app.get('/api/trajets', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 7. STATIONS — /api/stations
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/stations', async (req, res) => {
+app.get('/api/stations', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT s.*, COUNT(d.id_ligne) as nb_lignes
@@ -496,7 +519,7 @@ app.get('/api/stations', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 8. HORAIRES — /api/horaires
 // ═══════════════════════════════════════════════════════════════
-app.get('/api/horaires', async (req, res) => {
+app.get('/api/horaires', verifyToken, async (req, res, next) => {
   try {
     const rows = await dbAll(`
       SELECT h.*, l.nom_ligne
@@ -510,8 +533,16 @@ app.get('/api/horaires', async (req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Global Error Handler
+// ═══════════════════════════════════════════════════════════════
+app.use((err, req, res, next) => {
+  console.error("❌ Global Error Handler Caught:", err.message);
+  res.status(500).json({ error: err.message || 'Une erreur serveur inattendue est survenue.' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
