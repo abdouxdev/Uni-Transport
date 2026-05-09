@@ -2,30 +2,47 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
 // Create a connection pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'transport_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-const initDb = async () => {
-  try {
-    // We first connect without the database to create it if it doesn't exist
-    const tempConnection = await mysql.createConnection({
+const dbConfig = process.env.DATABASE_URL
+  ? {
+      uri: process.env.DATABASE_URL,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    }
+  : {
       host: process.env.DB_HOST || '127.0.0.1',
       port: process.env.DB_PORT || 3306,
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
-    });
+      database: process.env.DB_NAME || 'transport_db',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    };
 
-    const dbName = process.env.DB_NAME || 'transport_db';
-    await tempConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-    await tempConnection.end();
+// Enable SSL for cloud DBs unless explicitly disabled
+if (process.env.DATABASE_URL && process.env.DB_REQUIRE_SSL !== 'false') {
+  dbConfig.ssl = { rejectUnauthorized: false };
+}
+
+const pool = mysql.createPool(dbConfig);
+
+const initDb = async () => {
+  try {
+    // Only attempt to create the database if running locally without a DATABASE_URL
+    // Cloud managed databases (Render, Aiven) usually restrict CREATE DATABASE permissions
+    if (!process.env.DATABASE_URL) {
+      const tempConnection = await mysql.createConnection({
+        host: process.env.DB_HOST || '127.0.0.1',
+        port: process.env.DB_PORT || 3306,
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+      });
+
+      const dbName = process.env.DB_NAME || 'transport_db';
+      await tempConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+      await tempConnection.end();
+    }
 
     const connection = await pool.getConnection();
 

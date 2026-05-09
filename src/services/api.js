@@ -1,7 +1,14 @@
 const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  
+  // If it's a deployed production URL, use it exactly as provided.
+  if (!envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  
+  // If testing locally on a network device, dynamically swap localhost for the device IP
   if (typeof window !== 'undefined') {
-    return envUrl.replace('localhost', window.location.hostname);
+    return envUrl.replace('localhost', window.location.hostname).replace('127.0.0.1', window.location.hostname);
   }
   return envUrl;
 };
